@@ -5,6 +5,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"path"
 	"ppIm/app/http/api"
+	"ppIm/app/http/api/v1/validate"
 	"ppIm/app/model"
 	"ppIm/app/service"
 	"ppIm/app/websocket"
@@ -21,13 +22,15 @@ var Chat chat
 
 // 发送好友消息
 func (chat) SendToUser(ctx *gin.Context) {
+	var Validate validate.SendToUser
+	if err := ctx.ShouldBind(&Validate); err != nil {
+		api.R(ctx, api.Fail, "非法参数", gin.H{})
+		return
+	}
 	toUid, _ := strconv.Atoi(ctx.PostForm("to_uid"))
 	messageType, _ := strconv.Atoi(ctx.PostForm("type"))
 	body := ctx.PostForm("body")
-	if body == "" {
-		api.R(ctx, api.Fail, "请输入内容", nil)
-		return
-	}
+
 	uid := int(ctx.MustGet("id").(float64))
 
 	var friendList model.FriendList
@@ -65,8 +68,14 @@ func (chat) SendToUser(ctx *gin.Context) {
 
 // 撤回好友消息
 func (chat) WithdrawFromUser(ctx *gin.Context) {
+	var Validate validate.WithdrawFromUser
+	if err := ctx.ShouldBind(&Validate); err != nil {
+		api.R(ctx, api.Fail, "非法参数", gin.H{})
+		return
+	}
 	messageId, _ := strconv.Atoi(ctx.PostForm("message_id"))
 	uid := int(ctx.MustGet("id").(float64))
+
 	//查询消息记录
 	var chatMessage model.ChatMessage
 	lib.Db.Where("id = ? AND from_id = ? AND status <> ? AND ope = 0", messageId, uid, -1).First(&chatMessage)
@@ -98,14 +107,17 @@ func (chat) WithdrawFromUser(ctx *gin.Context) {
 
 // 发送群消息
 func (chat) SendToGroup(ctx *gin.Context) {
-	uid := int(ctx.MustGet("id").(float64))
-	messageType, _ := strconv.Atoi(ctx.PostForm("type"))
-	groupId, _ := strconv.Atoi(ctx.PostForm("group_id"))
-	body := ctx.PostForm("body")
-	if body == "" {
-		api.R(ctx, api.Fail, "请输入内容", nil)
+	var Validate validate.WithdrawFromUser
+	if err := ctx.ShouldBind(&Validate); err != nil {
+		api.R(ctx, api.Fail, "非法参数", gin.H{})
 		return
 	}
+	groupId, _ := strconv.Atoi(ctx.PostForm("group_id"))
+	messageType, _ := strconv.Atoi(ctx.PostForm("type"))
+	body := ctx.PostForm("body")
+
+	uid := int(ctx.MustGet("id").(float64))
+
 	var group model.Group
 	lib.Db.Where("id = ?", groupId).First(&group)
 	if group.Id == 0 {
@@ -158,8 +170,15 @@ func (chat) SendToGroup(ctx *gin.Context) {
 
 // 撤回群消息
 func (chat) WithdrawFromGroup(ctx *gin.Context) {
-	uid := int(ctx.MustGet("id").(float64))
+	var Validate validate.WithdrawFromGroup
+	if err := ctx.ShouldBind(&Validate); err != nil {
+		api.R(ctx, api.Fail, "非法参数", gin.H{})
+		return
+	}
 	messageId, _ := strconv.Atoi(ctx.PostForm("message_id"))
+
+	uid := int(ctx.MustGet("id").(float64))
+
 	//查询消息记录
 	var chatMessage model.ChatMessage
 	lib.Db.Where("id = ? AND from_id = ? AND status <> ? AND ope = 1", messageId, uid, -1).First(&chatMessage)

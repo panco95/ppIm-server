@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"path"
 	"ppIm/app/http/api"
+	"ppIm/app/http/api/v1/validate"
 	"ppIm/app/model"
 	"ppIm/app/service"
 	"ppIm/lib"
@@ -21,12 +22,12 @@ var User user
 
 // 用户更新昵称
 func (user) UpdateNickname(ctx *gin.Context) {
-	// 校验昵称参数
-	nickname := ctx.PostForm("nickname")
-	if len(nickname) < 4 || len(nickname) > 20 {
-		api.R(ctx, api.Fail, "昵称长度不合法", nil)
+	var Validate validate.UpdateNickname
+	if err := ctx.ShouldBind(&Validate); err != nil {
+		api.R(ctx, api.Fail, "非法参数", gin.H{})
 		return
 	}
+	nickname := ctx.PostForm("nickname")
 
 	// jwt参数
 	id := int(ctx.MustGet("id").(float64))
@@ -82,20 +83,21 @@ func (user) UpdateAvatar(ctx *gin.Context) {
 
 // 实名认证
 func (user) RealNameVerify(ctx *gin.Context) {
-	// 校验参数
-	realName := ctx.PostForm("real_name")
-	idCard := ctx.PostForm("id_card")
-	if len(realName) < 4 || len(realName) > 20 || !utils.IsChinese(realName) {
-		api.R(ctx, api.Fail, "姓名长度不合法", nil)
+	var Validate validate.RealNameVerify
+	if err := ctx.ShouldBind(&Validate); err != nil {
+		api.R(ctx, api.Fail, "非法参数", gin.H{})
 		return
 	}
+	realName := ctx.PostForm("real_name")
+	idCard := ctx.PostForm("id_card")
 
 	//校验身份证信息
 	x := []byte(idCard)
-	if validate := utils.IsValidCitizenNo(&x); !validate {
+	if v := utils.IsValidCitizenNo(&x); !v {
 		api.R(ctx, api.Fail, "身份证不合法", nil)
 		return
 	}
+
 	// 获取身份证信息：性别、生日、省份
 	_, _, sex, _ := utils.GetCitizenNoInfo(x)
 	uSex := 0
@@ -115,17 +117,13 @@ func (user) RealNameVerify(ctx *gin.Context) {
 
 //  更新最新地理位置及IP
 func (user) UpdateLocation(ctx *gin.Context) {
+	var Validate validate.UpdateLocation
+	if err := ctx.ShouldBind(&Validate); err != nil {
+		api.R(ctx, api.Fail, "非法参数", gin.H{})
+		return
+	}
 	longitude := ctx.PostForm("longitude")
 	latitude := ctx.PostForm("latitude")
-
-	/*
-	   isLong := regexp.MustCompile("^(([1-9]\\\\d?)|(1[0-7]\\\\d))(\\\\.\\\\d{1,6})|180|0(\\\\.\\\\d{1,6})?$")
-	   	isLatitude := regexp.MustCompile("^(([1-8]\\\\d?)|([1-8]\\\\d))(\\\\.\\\\d{1,6})|90|0(\\\\.\\\\d{1,6})?$")
-	   	if !isLong.MatchString(longitude) || !isLatitude.MatchString(latitude) {
-	   		api.R(ctx, 500, "位置信息不合法", nil)
-	   		return
-	   	}
-	*/
 
 	id := int(ctx.MustGet("id").(float64))
 	user := &model.User{Id: id}

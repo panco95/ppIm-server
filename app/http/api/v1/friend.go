@@ -3,6 +3,7 @@ package v1
 import (
 	"github.com/gin-gonic/gin"
 	"ppIm/app/http/api"
+	"ppIm/app/http/api/v1/validate"
 	"ppIm/app/model"
 	"ppIm/app/websocket"
 	"ppIm/lib"
@@ -16,12 +17,15 @@ var Friend friend
 
 // 搜索好友
 func (friend) Search(ctx *gin.Context) {
-	uid := int(ctx.MustGet("id").(float64))
-	word := ctx.PostForm("word")
-	if word == "" {
-		api.R(ctx, api.Fail, "请输入好友昵称", nil)
+	var Validate validate.Search
+	if err := ctx.ShouldBind(&Validate); err != nil {
+		api.R(ctx, api.Fail, "非法参数", gin.H{})
 		return
 	}
+	word := ctx.PostForm("word")
+
+	uid := int(ctx.MustGet("id").(float64))
+
 	type APIUser struct {
 		Username string
 		Nickname string
@@ -61,10 +65,16 @@ func (friend) List(ctx *gin.Context) {
 
 // 添加好友
 func (friend) Add(ctx *gin.Context) {
-	uid := int(ctx.MustGet("id").(float64))
+	var Validate validate.Add
+	if err := ctx.ShouldBind(&Validate); err != nil {
+		api.R(ctx, api.Fail, "非法参数", gin.H{})
+		return
+	}
 	username := ctx.PostForm("username")
 	channel := ctx.PostForm("channel")
 	reason := ctx.PostForm("reason")
+
+	uid := int(ctx.MustGet("id").(float64))
 
 	var user model.User
 	var count int
@@ -149,13 +159,18 @@ func (friend) AddReqs(ctx *gin.Context) {
 
 // 处理收到的好友请求
 func (friend) AddHandle(ctx *gin.Context) {
-	// 添加好友请求验证与数据写入
+	var Validate validate.AddHandle
+	if err := ctx.ShouldBind(&Validate); err != nil {
+		api.R(ctx, api.Fail, "非法参数", gin.H{})
+		return
+	}
 	fUid, _ := strconv.Atoi(ctx.PostForm("f_uid"))
 	status, _ := strconv.Atoi(ctx.PostForm("status"))
 	if status != 1 && status != -1 {
 		api.R(ctx, api.Fail, "非法参数", nil)
 		return
 	}
+
 	uid := int(ctx.MustGet("id").(float64))
 	var friendAdd model.FriendAdd
 	lib.Db.Where("uid = ? and f_uid = ? and status = ?", fUid, uid, 0).First(&friendAdd)
@@ -212,8 +227,15 @@ func (friend) AddHandle(ctx *gin.Context) {
 
 // 删除好友
 func (friend) Del(ctx *gin.Context) {
-	uid := int(ctx.MustGet("id").(float64))
+	var Validate validate.Del
+	if err := ctx.ShouldBind(&Validate); err != nil {
+		api.R(ctx, api.Fail, "非法参数", gin.H{})
+		return
+	}
 	fUid, _ := strconv.Atoi(ctx.PostForm("f_uid"))
+
+	uid := int(ctx.MustGet("id").(float64))
+
 	var friendList model.FriendList
 	lib.Db.Where("uid = ? and f_uid = ?", uid, fUid).First(&friendList)
 	if friendList.Id == 0 {

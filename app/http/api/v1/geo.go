@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/olivere/elastic/v7"
 	"ppIm/app/http/api"
+	"ppIm/app/http/api/v1/validate"
 	"ppIm/app/model"
 	"ppIm/lib"
 	"ppIm/utils"
@@ -19,23 +20,18 @@ var Geo geo
 
 // 附近的人
 func (geo) Users(ctx *gin.Context) {
-	// 经纬度校验
-	longitude, err1 := strconv.ParseFloat(ctx.PostForm("longitude"), 64)
-	latitude, err2 := strconv.ParseFloat(ctx.PostForm("latitude"), 64)
-	if err1 != nil || err2 != nil {
-		api.R(ctx, api.Fail, "数据非法", nil)
+	var Validate validate.Users
+	if err := ctx.ShouldBind(&Validate); err != nil {
+		api.R(ctx, api.Fail, "非法参数", gin.H{})
 		return
 	}
+	longitude, _ := strconv.ParseFloat(ctx.PostForm("longitude"), 64)
+	latitude, _ := strconv.ParseFloat(ctx.PostForm("latitude"), 64)
+
 	// 距离范围，默认100
-	distance := ctx.PostForm("distance")
-	if distance == "" {
-		distance = "100"
-	}
+	distance := ctx.DefaultPostForm("distance","100")
 	// 分页
-	page := ctx.PostForm("page")
-	if page == "" {
-		page = "1"
-	}
+	page := ctx.DefaultPostForm("page", "1")
 	pageInt, _ := strconv.Atoi(page)
 	size := 20
 	from := (pageInt - 1) * size

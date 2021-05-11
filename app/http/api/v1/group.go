@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
 	"ppIm/app/http/api"
+	"ppIm/app/http/api/v1/validate"
 	"ppIm/app/model"
 	"ppIm/app/websocket"
 	"ppIm/lib"
@@ -17,12 +18,15 @@ var Group group
 
 // 创建群组
 func (group) Create(ctx *gin.Context) {
-	uid := int(ctx.MustGet("id").(float64))
-	name := ctx.PostForm("name")
-	if name == "" {
-		api.R(ctx, api.Fail, "请输入群名称", nil)
+	var Validate validate.Create
+	if err := ctx.ShouldBind(&Validate); err != nil {
+		api.R(ctx, api.Fail, "非法参数", gin.H{})
 		return
 	}
+	name := ctx.PostForm("name")
+
+	uid := int(ctx.MustGet("id").(float64))
+
 	var group model.Group
 	var count int
 	lib.Db.Where("name = ?", name).First(&group).Count(&count)
@@ -64,11 +68,13 @@ func (group) Create(ctx *gin.Context) {
 
 // 搜索群组
 func (group) Search(ctx *gin.Context) {
-	word := ctx.PostForm("word")
-	if word == "" {
-		api.R(ctx, api.Fail, "请输入群组名称", nil)
+	var Validate validate.SearchG
+	if err := ctx.ShouldBind(&Validate); err != nil {
+		api.R(ctx, api.Fail, "非法参数", gin.H{})
 		return
 	}
+	word := ctx.PostForm("word")
+
 	var groups []model.Group
 	lib.Db.Model(&model.Group{}).Where("name LIKE ?", "%"+word+"%").Find(&groups)
 	api.R(ctx, api.Success, "查询成功", gin.H{"list": groups})
@@ -91,8 +97,15 @@ func (group) My(ctx *gin.Context) {
 
 // 申请加入群组
 func (group) Join(ctx *gin.Context) {
-	uid := int(ctx.MustGet("id").(float64))
+	var Validate validate.Join
+	if err := ctx.ShouldBind(&Validate); err != nil {
+		api.R(ctx, api.Fail, "非法参数", gin.H{})
+		return
+	}
 	groupId, _ := strconv.Atoi(ctx.PostForm("group_id"))
+
+	uid := int(ctx.MustGet("id").(float64))
+
 	var group model.Group
 	lib.Db.Where("id = ?", groupId).First(&group)
 	if group.Id == 0 {
@@ -156,17 +169,24 @@ func (group) JoinList(ctx *gin.Context) {
 
 // 申请加群处理
 func (group) JoinHandle(ctx *gin.Context) {
-	uid := int(ctx.MustGet("id").(float64))
+	var Validate validate.JoinHandle
+	if err := ctx.ShouldBind(&Validate); err != nil {
+		api.R(ctx, api.Fail, "非法参数", gin.H{})
+		return
+	}
 	joinId, _ := strconv.Atoi(ctx.PostForm("join_id"))
 	status, _ := strconv.Atoi(ctx.PostForm("status")) // 1同意，-拒绝
 	if status != 0 && status != 1 {
 		api.R(ctx, api.Fail, "非法参数", nil)
 		return
 	}
+
+	uid := int(ctx.MustGet("id").(float64))
+
 	var groupJoin model.GroupJoin
 	lib.Db.Where("id = ?", joinId).First(&groupJoin)
 	if groupJoin.Id == 0 {
-		api.R(ctx, api.Fail, "加群申请不存在",nil)
+		api.R(ctx, api.Fail, "加群申请不存在", nil)
 		return
 	}
 	var group model.Group
@@ -225,8 +245,15 @@ func (group) JoinHandle(ctx *gin.Context) {
 
 // 退出群组
 func (group) Leave(ctx *gin.Context) {
-	uid := int(ctx.MustGet("id").(float64))
+	var Validate validate.Leave
+	if err := ctx.ShouldBind(&Validate); err != nil {
+		api.R(ctx, api.Fail, "非法参数", gin.H{})
+		return
+	}
 	groupId, _ := strconv.Atoi(ctx.PostForm("group_id"))
+
+	uid := int(ctx.MustGet("id").(float64))
+
 	var groupUser model.GroupUser
 	lib.Db.Where("uid = ? AND group_id = ?", uid, groupId).First(&groupUser)
 	if groupUser.Id == 0 {
@@ -239,9 +266,16 @@ func (group) Leave(ctx *gin.Context) {
 
 // 踢出群组
 func (group) Shot(ctx *gin.Context) {
-	uid := int(ctx.MustGet("id").(float64))
+	var Validate validate.Shot
+	if err := ctx.ShouldBind(&Validate); err != nil {
+		api.R(ctx, api.Fail, "非法参数", gin.H{})
+		return
+	}
 	userId, _ := strconv.Atoi(ctx.PostForm("user_id"))
 	groupId, _ := strconv.Atoi(ctx.PostForm("group_id"))
+
+	uid := int(ctx.MustGet("id").(float64))
+
 	var group model.Group
 	lib.Db.Where("id = ?", groupId).First(&group)
 	if group.Id == 0 {

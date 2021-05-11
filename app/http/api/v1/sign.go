@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
 	"ppIm/app/http/api"
+	"ppIm/app/http/api/v1/validate"
 	"ppIm/app/model"
 	"ppIm/lib"
 	"ppIm/utils"
@@ -16,14 +17,13 @@ var Sign sign
 
 // 用户登录接口
 func (sign) Login(ctx *gin.Context) {
-	// 参数获取与验证
-	username := ctx.PostForm("username")
-	password := ctx.PostForm("password")
-	result, msg := validateParams(&username, &password)
-	if false == result {
-		api.R(ctx, api.Fail, msg, nil)
+	var Validate validate.Login
+	if err := ctx.ShouldBind(&Validate); err != nil {
+		api.R(ctx, api.Fail, "非法参数", gin.H{})
 		return
 	}
+	username := ctx.PostForm("username")
+	password := ctx.PostForm("password")
 
 	// 检测用户是否存在
 	var user model.User
@@ -60,14 +60,13 @@ func (sign) Login(ctx *gin.Context) {
 
 //用户注册接口
 func (sign) Register(ctx *gin.Context) {
-	// 参数获取与验证
-	username := ctx.PostForm("username")
-	password := ctx.PostForm("password")
-	result, msg := validateParams(&username, &password)
-	if false == result {
-		api.R(ctx, api.Fail, msg, nil)
+	var Validate validate.Register
+	if err := ctx.ShouldBind(&Validate); err != nil {
+		api.R(ctx, api.Fail, "非法参数", gin.H{})
 		return
 	}
+	username := ctx.PostForm("username")
+	password := ctx.PostForm("password")
 
 	// 检测用户名是否存在
 	var user model.User
@@ -109,26 +108,4 @@ func (sign) Register(ctx *gin.Context) {
 			"status":   user.Status,
 		},
 	})
-}
-
-// --------------------- func --------------------- //
-
-// 检测用户名、密码参数是否合法
-func validateParams(username, password *string) (bool, string) {
-	if len(*username) < 1 {
-		return false, "请输入用户名"
-	}
-	if len(*username) < 6 || len(*username) > 20 {
-		return false, "用户名长度限制6-20位"
-	}
-	if len(*password) < 1 {
-		return false, "请输入密码"
-	}
-	if len(*password) < 6 || len(*password) > 20 {
-		return false, "密码长度限制6-20位"
-	}
-	if utils.IsChinese(*username) || utils.IsChinese(*password) {
-		return false, "用户名和密码不能含有中文"
-	}
-	return true, ""
 }
