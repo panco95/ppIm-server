@@ -10,6 +10,6 @@ type RealNameVerify struct {
 }
 
 type UpdateLocation struct {
-	Longitude string `form:"Longitude" binding:"required,longitude"`
-	Latitude  string `form:"Latitude" binding:"required,latitude"`
+	Longitude string `form:"longitude" binding:"required,longitude"`
+	Latitude  string `form:"latitude" binding:"required,latitude"`
 }
