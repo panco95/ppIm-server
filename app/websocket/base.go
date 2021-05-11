@@ -33,11 +33,15 @@ func WebsocketEntry(ctx *gin.Context) {
 		return
 	}
 
-	var c Connection
-	var counter int
+	c := Connection{
+		Conn:    conn,
+		Channel: make(chan []byte),
+		Ctx:     ctx,
+	}
+	go ConnChannel(&c)
 
+	var counter int
 	ClientCounterLocker.Lock()
-	c.Conn = conn
 	ClientCounter++
 	counter = ClientCounter
 	Connections[counter] = &c
@@ -59,61 +63,7 @@ func WebsocketEntry(ctx *gin.Context) {
 			lib.Logger.Debugf(err.Error())
 			break
 		}
-
-		// json消息转换
-		var message Message
-		if err := json.Unmarshal(msg, &message); err != nil {
-			// 接收到非json数据
-			lib.Logger.Debugf(err.Error())
-			message := Message{
-				Cmd:  CmdFail,
-				Body: "消息格式错误",
-				Ope:  OpeSystem,
-				Type: TypePrompt,
-			}
-			conn.WriteJSON(message)
-			continue
-		}
-
-		// bind绑定uid和client_id，这是必须绑定的才能通信的
-		if message.Cmd == CmdSign {
-			if c.Uid == 0 {
-				jwtToken := message.Body
-				id, err := service.ParseToken(ctx, jwtToken)
-				if err != "" {
-					message := Message{
-						Cmd:  CmdFail,
-						Body: "认证失败",
-						Ope:  OpeSystem,
-						Type: TypePrompt,
-					}
-					conn.WriteJSON(message)
-				} else {
-					c.Uid = id
-					UidToClientIdLocker.Lock()
-					UidToClientId[c.Uid] = c.ClientId // 认证成功后注册到已认证连接表，方便查询对应clientId
-					UidToClientIdLocker.Unlock()
-					message := Message{
-						Cmd:  CmdSignSuccess,
-						Body: "认证成功",
-						Ope:  OpeSystem,
-						Type: TypePrompt,
-					}
-					conn.WriteJSON(message)
-				}
-			}
-		} else {
-			if c.Uid > 0 {
-			} else {
-				message := Message{
-					Cmd:  CmdFail,
-					Body: "你还未认证",
-					Ope:  OpeSystem,
-					Type: TypePrompt,
-				}
-				conn.WriteJSON(message)
-			}
-		}
+		c.Channel <- msg
 	}
 
 	ClientCounterLocker.Lock()
@@ -124,4 +74,65 @@ func WebsocketEntry(ctx *gin.Context) {
 		UidToClientIdLocker.Unlock()
 	}
 	ClientCounterLocker.Unlock()
+}
+
+// 消息处理协程
+func ConnChannel(c *Connection) {
+	for {
+		select {
+		case msg := <-c.Channel:
+			// json消息转换
+			var message Message
+			if err := json.Unmarshal(msg, &message); err != nil {
+				// 接收到非json数据
+				lib.Logger.Debugf(err.Error())
+				message := Message{
+					Cmd:  CmdFail,
+					Body: "消息格式错误",
+					Ope:  OpeSystem,
+					Type: TypePrompt,
+				}
+				c.Conn.WriteJSON(message)
+				continue
+			}
+			// bind绑定uid和client_id，这是必须绑定的才能通信的
+			if message.Cmd == CmdSign {
+				if c.Uid == 0 {
+					jwtToken := message.Body
+					id, err := service.ParseToken(c.Ctx, jwtToken)
+					if err != "" {
+						message := Message{
+							Cmd:  CmdFail,
+							Body: "认证失败",
+							Ope:  OpeSystem,
+							Type: TypePrompt,
+						}
+						c.Conn.WriteJSON(message)
+					} else {
+						c.Uid = id
+						UidToClientIdLocker.Lock()
+						UidToClientId[c.Uid] = c.ClientId // 认证成功后注册到已认证连接表，方便查询对应clientId
+						UidToClientIdLocker.Unlock()
+						message := Message{
+							Cmd:  CmdSignSuccess,
+							Body: "认证成功",
+							Ope:  OpeSystem,
+							Type: TypePrompt,
+						}
+						c.Conn.WriteJSON(message)
+					}
+				}
+			} else {
+				if c.Uid == 0 {
+					message := Message{
+						Cmd:  CmdFail,
+						Body: "你还未认证",
+						Ope:  OpeSystem,
+						Type: TypePrompt,
+					}
+					c.Conn.WriteJSON(message)
+				}
+			}
+		}
+	}
 }

@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"ppIm/lib"
 	"strconv"
@@ -12,6 +13,8 @@ type Connection struct {
 	ClientId string
 	Uid      int
 	Conn     *websocket.Conn
+	Channel  chan []byte
+	Ctx      *gin.Context
 }
 
 // 消息结构体
