@@ -13,7 +13,7 @@ func Welcome(ctx *gin.Context) {
 }
 
 func NotFound(ctx *gin.Context) {
-	R(ctx, NoFound, "Not Found", nil)
+	R(ctx, Fail, "Not Found", nil)
 }
 
 // 响应封装（不带新token）

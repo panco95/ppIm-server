@@ -99,7 +99,7 @@ func (sign) Register(ctx *gin.Context) {
 
 	// 生成jwt token和用户信息给用户
 	tokenString := api.MakeJwtToken(user.Id)
-	api.R(ctx, api.Fail, "登录成功", gin.H{
+	api.R(ctx, api.Success, "登录成功", gin.H{
 		"t": tokenString,
 		"user": gin.H{
 			"username": username,
